@@ -2,10 +2,9 @@ import json
 import boto3
 from .utils import history_index_key
 
-s3 = boto3.client("s3")
-
 
 def update_history_index(bucket, job_id, ts):
+    s3 = boto3.client("s3")
     key = history_index_key(job_id)
 
     try:
@@ -14,7 +13,6 @@ def update_history_index(bucket, job_id, ts):
     except s3.exceptions.NoSuchKey:
         index = {"runs": []}
 
-    # evitar duplicados
     if any(r["id"] == ts for r in index["runs"]):
         return
 
@@ -32,6 +30,7 @@ def update_history_index(bucket, job_id, ts):
 
 
 def update_root_index(bucket, job_id, label):
+    s3 = boto3.client("s3")
     key = "jobs/index.json"
 
     try:
@@ -40,7 +39,6 @@ def update_root_index(bucket, job_id, label):
     except s3.exceptions.NoSuchKey:
         index = {"jobs": []}
 
-    # evitar duplicados
     if any(j["id"] == job_id for j in index["jobs"]):
         return
 
@@ -49,6 +47,7 @@ def update_root_index(bucket, job_id, label):
         "label": label
     })
 
+    # CRITICAL: prevent CloudFront caching
     s3.put_object(
         Bucket=bucket,
         Key=key,
@@ -56,3 +55,7 @@ def update_root_index(bucket, job_id, label):
         ContentType="application/json",
         CacheControl="no-store"
     )
+if __name__ == "__main__":
+    # Example usage
+    update_history_index(bucket="my-benchmark-bucket", job_id="example-job", ts="2024-01-01T12:00:00Z")
+    update_root_index(bucket="my-benchmark-bucket", job_id="example-job", label="Example Job")

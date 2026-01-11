@@ -28,7 +28,14 @@ class BenchmarkIngestor:
         payload.setdefault("run", {})
         payload["run"]["executed_at"] = ts
 
-        # 1️⃣ history/<ts>.json
+        # 1️⃣ jobs/index.json (ROOT registry, no-store)
+        update_root_index(
+            bucket=self.bucket,
+            job_id=job_id,
+            label=job_label
+        )
+
+        # 2️⃣ history/<ts>.json
         self.s3.put_object(
             Bucket=self.bucket,
             Key=history_key(job_id, ts),
@@ -36,10 +43,10 @@ class BenchmarkIngestor:
             ContentType="application/json"
         )
 
-        # 2️⃣ history/index.json
+        # 3️⃣ history/index.json
         update_history_index(self.bucket, job_id, ts)
 
-        # 3️⃣ latest.json
+        # 4️⃣ latest.json (no-store)
         self.s3.put_object(
             Bucket=self.bucket,
             Key=latest_key(job_id),
@@ -47,25 +54,3 @@ class BenchmarkIngestor:
             ContentType="application/json",
             CacheControl="no-store"
         )
-
-        # 4️⃣ jobs/index.json (ROOT)
-        update_root_index(
-            bucket=self.bucket,
-            job_id=job_id,
-            label=job_label
-        )
-if __name__ == "__main__":
-    # Example usage
-    ingestor = BenchmarkIngestor(bucket="my-benchmark-bucket")
-
-    sample_payload = {
-        "job": {"id": "job-123", "title": "Sample Job"},
-        "scenario": {"name": "test-scenario"},
-        "results": []
-    }
-
-    try:
-        ingestor.ingest(sample_payload)
-        print("Payload ingested successfully.")
-    except Exception as e:
-        print(f"Failed to ingest payload: {e}")
